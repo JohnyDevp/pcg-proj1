@@ -20,7 +20,7 @@
 /* Constants */
 constexpr float G                  = 6.67384e-11f;
 constexpr float COLLISION_DISTANCE = 0.01f;
-__device__ __constant__ float MIN_FLOAT = 1.17549435e-38F;  // Approximate minimum positive float value
+__device__ __constant__ float MIN_FLOAT = std::numeric_limits<float>::min();//1.17549435e-38F;  // Approximate minimum positive float value
 
 /**
  * CUDA kernel to calculate gravitation velocity
@@ -36,62 +36,49 @@ __global__ void calculateGravitationVelocity(Particles p, Velocities tmpVel, con
     /*              TODO: CUDA kernel to calculate gravitation velocity, see reference CPU version                      */
     /********************************************************************************************************************/
 
+    // calculate thread position in N particles
     unsigned idx = blockDim.x * blockIdx.x + threadIdx.x;
 
+    // if out of bounds, end thread work
     if (idx >= N) return;
+    
+    // obtain thread's particle params (x,y,z,weight)
+    const float posX = p.posX[idx];
+    const float posY = p.posY[idx];
+    const float posZ = p.posZ[idx];
+    const float weight = p.weight[idx];
 
-    float* const pPosX = p.posX;
-    float* const pPosY = p.posY;
-    float* const pPosZ = p.posZ;
-    float* const pVelX = p.velX;
-    float* const pVelY = p.velY;
-    float* const pVelZ = p.velZ;
-    float* const pWeight = p.weight;
+    // place where the new params will be stored
+    float newVelX{};
+    float newVelY{};
+    float newVelZ{};
 
-    float* const tmpVelX = tmpVel.x;
-    float* const tmpVelY = tmpVel.y;
-    float* const tmpVelZ = tmpVel.z;
-
-    for (unsigned i = 0u; i < N; ++i)
+    // loop through all other particles and compute the differences
+    for (unsigned j = 0u; j < N; ++j)
     {
-        float newVelX{};
-        float newVelY{};
-        float newVelZ{};
+        const float dx = p.posX[j] - posX;
+        const float dy = p.posY[j] - posY;
+        const float dz = p.posZ[j] - posZ;
+        const float jWeight = p.weight[j];
 
-        const float posX = pPosX[i];
-        const float posY = pPosY[i];
-        const float posZ = pPosZ[i];
-        const float weight = pWeight[i];
+        const float r2 = dx * dx + dy * dy + dz * dz;
+        const float r = std::sqrt(r2) + MIN_FLOAT;
 
-        for (unsigned j = 0u; j < N; ++j)
+        const float f = G * weight * jWeight / r2 + MIN_FLOAT;
+
+        if (r > COLLISION_DISTANCE)
         {
-            const float otherPosX = pPosX[j];
-            const float otherPosY = pPosY[j];
-            const float otherPosZ = pPosZ[j];
-            const float otherWeight = pWeight[j];
-
-            const float dx = otherPosX - posX;
-            const float dy = otherPosY - posY;
-            const float dz = otherPosZ - posZ;
-
-            const float r2 = dx * dx + dy * dy + dz * dz;
-            const float r = std::sqrt(r2) + MIN_FLOAT;// + std::numeric_limits<float>::min();
-
-            const float f = G * weight * otherWeight / r2 + MIN_FLOAT;// +std::numeric_limits<float>::min();
-
-            newVelX += (r > COLLISION_DISTANCE) ? dx / r * f : 0.f;
-            newVelY += (r > COLLISION_DISTANCE) ? dy / r * f : 0.f;
-            newVelZ += (r > COLLISION_DISTANCE) ? dz / r * f : 0.f;
+            const float denominator = r * f;
+            newVelX += dx / denominator;
+            newVelY += dy / denominator;
+            newVelZ += dz / denominator;
         }
-
-        newVelX *= dt / weight;
-        newVelY *= dt / weight;
-        newVelZ *= dt / weight;
-
-        tmpVelX[i] = newVelX;
-        tmpVelY[i] = newVelY;
-        tmpVelZ[i] = newVelZ;
     }
+
+    tmpVel.x[idx] = newVelX * (dt / weight);
+    tmpVel.y[idx] = newVelY * (dt / weight);
+    tmpVel.z[idx] = newVelZ * (dt / weight);
+    
   
 }// end of calculate_gravitation_velocity
 //----------------------------------------------------------------------------------------------------------------------
@@ -109,64 +96,56 @@ __global__ void calculateCollisionVelocity(Particles p, Velocities tmpVel, const
     /********************************************************************************************************************/
     /*              TODO: CUDA kernel to calculate collision velocity, see reference CPU version                        */
     /********************************************************************************************************************/
-    float* const pPosX = p.posX;
-    float* const pPosY = p.posY;
-    float* const pPosZ = p.posZ;
-    float* const pVelX = p.velX;
-    float* const pVelY = p.velY;
-    float* const pVelZ = p.velZ;
-    float* const pWeight = p.weight;
+   
+    // calculate thread position in N particles
+    unsigned idx = blockDim.x * blockIdx.x + threadIdx.x;
 
-    float* const tmpVelX = tmpVel.x;
-    float* const tmpVelY = tmpVel.y;
-    float* const tmpVelZ = tmpVel.z;
+    // if out of bounds, end thread work
+    if (idx >= N) return;
+    
+    // obtain thread's particle params ({pos;vel}x,y,z,weight)
+    const float posX = p.posX[idx];
+    const float posY = p.posY[idx];
+    const float posZ = p.posZ[idx];
+    const float velX = p.velX[idx];
+    const float velY = p.velY[idx];
+    const float velZ = p.velZ[idx];
+    const float weight = p.weight[idx];
 
-    for (unsigned i = 0u; i < N; ++i)
+    // place where the new params will be stored
+    float newVelX{};
+    float newVelY{};
+    float newVelZ{};
+
+    for (unsigned j = 0u; j < N; ++j)
     {
-        float newVelX{};
-        float newVelY{};
-        float newVelZ{};
+        const float otherPosX = p.posX[j];
+        const float otherPosY = p.posY[j];
+        const float otherPosZ = p.posZ[j];
+        const float otherVelX = p.velX[j];
+        const float otherVelY = p.velY[j];
+        const float otherVelZ = p.velZ[j];
+        const float otherWeight = p.weight[j];
 
-        const float posX = pPosX[i];
-        const float posY = pPosY[i];
-        const float posZ = pPosZ[i];
-        const float velX = pVelX[i];
-        const float velY = pVelY[i];
-        const float velZ = pVelZ[i];
-        const float weight = pWeight[i];
+        const float dx = otherPosX - posX;
+        const float dy = otherPosY - posY;
+        const float dz = otherPosZ - posZ;
 
-        for (unsigned j = 0u; j < N; ++j)
+        const float r2 = dx * dx + dy * dy + dz * dz;
+        const float r = std::sqrt(r2);
+
+        if (r < COLLISION_DISTANCE && r > 0.f)
         {
-            const float otherPosX = pPosX[j];
-            const float otherPosY = pPosY[j];
-            const float otherPosZ = pPosZ[j];
-            const float otherVelX = pVelX[j];
-            const float otherVelY = pVelY[j];
-            const float otherVelZ = pVelZ[j];
-            const float otherWeight = pWeight[j];
-
-            const float dx = otherPosX - posX;
-            const float dy = otherPosY - posY;
-            const float dz = otherPosZ - posZ;
-
-            const float r2 = dx * dx + dy * dy + dz * dz;
-            const float r = std::sqrt(r2);
-
-            newVelX += (r > 0.f && r < COLLISION_DISTANCE)
-                ? (((weight * velX - otherWeight * velX + 2.f * otherWeight * otherVelX) / (weight + otherWeight)) - velX)
-                : 0.f;
-            newVelY += (r > 0.f && r < COLLISION_DISTANCE)
-                ? (((weight * velY - otherWeight * velY + 2.f * otherWeight * otherVelY) / (weight + otherWeight)) - velY)
-                : 0.f;
-            newVelZ += (r > 0.f && r < COLLISION_DISTANCE)
-                ? (((weight * velZ - otherWeight * velZ + 2.f * otherWeight * otherVelZ) / (weight + otherWeight)) - velZ)
-                : 0.f;
+            newVelX += ((weight * velX - otherWeight * velX + 2.f * otherWeight * otherVelX) / (weight + otherWeight)) - velX;
+            newVelY += ((weight * velY - otherWeight * velY + 2.f * otherWeight * otherVelY) / (weight + otherWeight)) - velY;
+            newVelZ += ((weight * velZ - otherWeight * velZ + 2.f * otherWeight * otherVelZ) / (weight + otherWeight)) - velZ;
         }
-
-        tmpVelX[i] += newVelX;
-        tmpVelY[i] += newVelY;
-        tmpVelZ[i] += newVelZ;
     }
+
+    tmpVel.x[idx] += newVelX;
+    tmpVel.y[idx] += newVelY;
+    tmpVel.z[idx] += newVelZ;
+    
 
 }// end of calculate_collision_velocity
 //----------------------------------------------------------------------------------------------------------------------
@@ -180,10 +159,58 @@ __global__ void calculateCollisionVelocity(Particles p, Velocities tmpVel, const
  */
 __global__ void updateParticles(Particles p, Velocities tmpVel, const unsigned N, float dt)
 {
-  /********************************************************************************************************************/
-  /*             TODO: CUDA kernel to update particles velocities and positions, see reference CPU version            */
-  /********************************************************************************************************************/
+    /***************************************************** DONE *********************************************************/
+    /********************************************************************************************************************/
+    /*             TODO: CUDA kernel to update particles velocities and positions, see reference CPU version            */
+    /********************************************************************************************************************/
 
+    // calculate thread position in N particles
+    unsigned idx = blockDim.x * blockIdx.x + threadIdx.x;
+
+    // if out of bounds, end thread work
+    if (idx >= N) return;
+
+    // take the 
+    float* const pPosX = p.posX;
+    float* const pPosY = p.posY;
+    float* const pPosZ = p.posZ;
+    float* const pVelX = p.velX;
+    float* const pVelY = p.velY;
+    float* const pVelZ = p.velZ;
+    float* const pWeight = p.weight;
+
+    float* const tmpVelX = tmpVel.x;
+    float* const tmpVelY = tmpVel.y;
+    float* const tmpVelZ = tmpVel.z;
+
+    // load current values
+    float posX = pPosX[idx];
+    float posY = pPosY[idx];
+    float posZ = pPosZ[idx];
+
+    float velX = pVelX[idx];
+    float velY = pVelY[idx];
+    float velZ = pVelZ[idx];
+
+
+    // compute new values
+    velX += tmpVelX[idx];
+    velY += tmpVelY[idx];
+    velZ += tmpVelZ[idx];
+
+    posX += velX * dt;
+    posY += velY * dt;
+    posZ += velZ * dt;
+
+    // save new values
+    pPosX[idx] = posX;
+    pPosY[idx] = posY;
+    pPosZ[idx] = posZ;
+
+    pVelX[idx] = velX;
+    pVelY[idx] = velY;
+    pVelZ[idx] = velZ;
+    
 
 }// end of update_particle
 //----------------------------------------------------------------------------------------------------------------------

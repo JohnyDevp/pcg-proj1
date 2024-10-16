@@ -177,8 +177,9 @@ int main(int argc, char **argv)
     /******************************************************************************************************************/
     /*                                     TODO: GPU kernels invocation                                               */
     /******************************************************************************************************************/
-    calculateGravitationVelocity<<<simGridDim, simBlockDim>>> (dParticles,dTmpVelocities,N,dt);
+    calculateGravitationVelocity<<<simGridDim, simBlockDim>>> (dParticles, dTmpVelocities,N,dt);
     calculateCollisionVelocity <<<simGridDim, simBlockDim >>> (dParticles, dTmpVelocities, N, dt);
+    updateParticles <<<simGridDim, simBlockDim >>> (dParticles, dTmpVelocities, N, dt);
   }
 
   // Wait for all CUDA kernels to finish
