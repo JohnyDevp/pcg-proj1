@@ -42,7 +42,7 @@
 ## Otázky
 
 ### Krok 0: Základní implementace
-**Vyskytla se nějaká anomále v naměřených časech? Pokud ano, vysvětlete:**
+**Vyskytla se nějaká anomálie v naměřených časech? Pokud ano, vysvětlete:**
 
 
 ### Krok 1: Sloučení kernelů

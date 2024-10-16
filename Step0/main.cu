@@ -1,16 +1,16 @@
 /**
  * @file      main.cu
  *
- * @author    Name Surname \n
+ * @author    Jan Hol·Ú \n
  *            Faculty of Information Technology \n
  *            Brno University of Technology \n
- *            xlogin00@fit.vutbr.cz
+ *            xholan11@fit.vutbr.cz
  *
  * @brief     PCG Assignment 1
  *
  * @version   2024
  *
- * @date      04 October   2023, 09:00 (created) \n
+ * @date      20 October   2024, 09:00 \n
  */
 
 #include <cmath>
@@ -84,12 +84,22 @@ int main(int argc, char **argv)
 
   Particles hParticles{};
 
+  /***************************************************** DONE *********************************************************/
   /********************************************************************************************************************/
   /*                              TODO: CPU side memory allocation (pinned)                                           */
   /********************************************************************************************************************/
 
+  size_t size = sizeof(float) * N;
+  
+  CUDA_CALL(cudaHostAlloc(&hParticles.posX, size, cudaHostAllocDefault));
+  CUDA_CALL(cudaHostAlloc(&hParticles.posY, size, cudaHostAllocDefault));
+  CUDA_CALL(cudaHostAlloc(&hParticles.posZ, size, cudaHostAllocDefault));
+  CUDA_CALL(cudaHostAlloc(&hParticles.velX, size, cudaHostAllocDefault));
+  CUDA_CALL(cudaHostAlloc(&hParticles.velY, size, cudaHostAllocDefault));
+  CUDA_CALL(cudaHostAlloc(&hParticles.velZ, size, cudaHostAllocDefault));
+  CUDA_CALL(cudaHostAlloc(&hParticles.weight, size, cudaHostAllocDefault));
 
-
+  /***************************************************** DONE *********************************************************/
   /********************************************************************************************************************/
   /*                              TODO: Fill memory descriptor layout                                                 */
   /********************************************************************************************************************/
@@ -100,13 +110,13 @@ int main(int argc, char **argv)
    *       Data pointer       consecutive elements        element in FLOATS,
    *                          in FLOATS, not bytes            not bytes
   */
-  MemDesc md(nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
+  MemDesc md(hParticles.posX,                   1,                          0,
+             hParticles.posY,                   1,                          0,
+             hParticles.posZ,                   1,                          0,
+             hParticles.velX,                   1,                          0,
+             hParticles.velY,                   1,                          0,
+             hParticles.velZ,                   1,                          0,
+             hParticles.weight,                 1,                          0,
              N,
              recordsCount);
 
@@ -127,17 +137,37 @@ int main(int argc, char **argv)
   Particles  dParticles{};
   Velocities dTmpVelocities{};
 
+  /***************************************************** DONE *********************************************************/
   /********************************************************************************************************************/
   /*                                     TODO: GPU side memory allocation                                             */
   /********************************************************************************************************************/
 
-  
+  CUDA_CALL(cudaMalloc<float>(&dParticles.posX, size));
+  CUDA_CALL(cudaMalloc<float>(&dParticles.posY, size));
+  CUDA_CALL(cudaMalloc<float>(&dParticles.posZ, size));
+  CUDA_CALL(cudaMalloc<float>(&dParticles.velX, size));
+  CUDA_CALL(cudaMalloc<float>(&dParticles.velY, size));
+  CUDA_CALL(cudaMalloc<float>(&dParticles.velZ, size));
+  CUDA_CALL(cudaMalloc<float>(&dParticles.weight, size));
 
+  CUDA_CALL(cudaMalloc<float>(&dTmpVelocities.x, size));
+  CUDA_CALL(cudaMalloc<float>(&dTmpVelocities.y, size));
+  CUDA_CALL(cudaMalloc<float>(&dTmpVelocities.z, size));
+  
+  /***************************************************** DONE *********************************************************/
   /********************************************************************************************************************/
   /*                                     TODO: Memory transfer CPU -> GPU                                             */
   /********************************************************************************************************************/
 
+  CUDA_CALL(cudaMemcpy(dParticles.posX, hParticles.posX, N * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles.posY, hParticles.posY, N * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles.posZ, hParticles.posZ, N * sizeof(float), cudaMemcpyHostToDevice));
 
+  CUDA_CALL(cudaMemcpy(dParticles.velX, hParticles.velX, N * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles.velY, hParticles.velY, N * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dParticles.velZ, hParticles.velZ, N * sizeof(float), cudaMemcpyHostToDevice));
+
+  CUDA_CALL(cudaMemcpy(dParticles.weight, hParticles.weight, N * sizeof(float), cudaMemcpyHostToDevice));
   
   // Start measurement
   const auto start = std::chrono::steady_clock::now();
@@ -147,8 +177,8 @@ int main(int argc, char **argv)
     /******************************************************************************************************************/
     /*                                     TODO: GPU kernels invocation                                               */
     /******************************************************************************************************************/
-
-
+    calculateGravitationVelocity<<<simGridDim, simBlockDim>>> (dParticles,dTmpVelocities,N,dt);
+    calculateCollisionVelocity <<<simGridDim, simBlockDim >>> (dParticles, dTmpVelocities, N, dt);
   }
 
   // Wait for all CUDA kernels to finish
@@ -161,12 +191,21 @@ int main(int argc, char **argv)
   const float elapsedTime = std::chrono::duration<float>(end - start).count();
   std::printf("Time: %f s\n", elapsedTime);
 
-
+  /***************************************************** DONE *********************************************************/
   /********************************************************************************************************************/
   /*                                     TODO: Memory transfer GPU -> CPU                                             */
   /********************************************************************************************************************/
 
 
+  CUDA_CALL(cudaMemcpy(hParticles.posX, dParticles.posX, N * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.posY, dParticles.posY, N * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.posZ, dParticles.posZ, N * sizeof(float), cudaMemcpyDeviceToHost));
+
+  CUDA_CALL(cudaMemcpy(hParticles.velX, dParticles.velX, N * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.velY, dParticles.velY, N * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.velZ, dParticles.velZ, N * sizeof(float), cudaMemcpyDeviceToHost));
+
+  CUDA_CALL(cudaMemcpy(dParticles.weight, hParticles.weight, N * sizeof(float), cudaMemcpyDeviceToHost));
 
   // Compute reference center of mass on CPU
   const float4 refCenterOfMass = centerOfMassRef(md);
@@ -183,16 +222,35 @@ int main(int argc, char **argv)
   h5Helper.writeComFinal(refCenterOfMass);
   h5Helper.writeParticleDataFinal();
 
+  /***************************************************** DONE *********************************************************/
   /********************************************************************************************************************/
   /*                                     TODO: GPU side memory deallocation                                           */
   /********************************************************************************************************************/
 
-  
+  CUDA_CALL(cudaFree(dParticles.posX));
+  CUDA_CALL(cudaFree(dParticles.posY));
+  CUDA_CALL(cudaFree(dParticles.posZ));
+  CUDA_CALL(cudaFree(dParticles.velX));
+  CUDA_CALL(cudaFree(dParticles.velY));
+  CUDA_CALL(cudaFree(dParticles.velZ));
+  CUDA_CALL(cudaFree(dParticles.weight));
 
+  CUDA_CALL(cudaFree(dTmpVelocities.x));
+  CUDA_CALL(cudaFree(dTmpVelocities.y));
+  CUDA_CALL(cudaFree(dTmpVelocities.z));
+  
+  /***************************************************** DONE *********************************************************/
   /********************************************************************************************************************/
   /*                                     TODO: CPU side memory deallocation                                           */
   /********************************************************************************************************************/
 
+  CUDA_CALL(cudaFreeHost(hParticles.posX));
+  CUDA_CALL(cudaFreeHost(hParticles.posY));
+  CUDA_CALL(cudaFreeHost(hParticles.posZ));
+  CUDA_CALL(cudaFreeHost(hParticles.velX));
+  CUDA_CALL(cudaFreeHost(hParticles.velY));
+  CUDA_CALL(cudaFreeHost(hParticles.velZ));
+  CUDA_CALL(cudaFreeHost(hParticles.weight));
 
 }// end of main
 //----------------------------------------------------------------------------------------------------------------------
