@@ -20,7 +20,9 @@
 /* Constants */
 constexpr float G                  = 6.67384e-11f;
 constexpr float COLLISION_DISTANCE = 0.01f;
-__device__ __constant__ float MIN_FLOAT = std::numeric_limits<float>::min();//1.17549435e-38F;  // Approximate minimum positive float value
+
+// create min float constant used on GPU (because this construction cannot be used in __global__ function)
+__device__ __constant__ float MIN_FLOAT = std::numeric_limits<float>::min();
 
 /**
  * CUDA kernel to calculate gravitation velocity
@@ -36,17 +38,26 @@ __global__ void calculateGravitationVelocity(Particles p, Velocities tmpVel, con
     /*              TODO: CUDA kernel to calculate gravitation velocity, see reference CPU version                      */
     /********************************************************************************************************************/
 
+    // preloaded pointers
+    float* const pPosX = p.posX;
+    float* const pPosY = p.posY;
+    float* const pPosZ = p.posZ;
+    float* const pVelX = p.velX;
+    float* const pVelY = p.velY;
+    float* const pVelZ = p.velZ;
+    float* const pWeight = p.weight;
+
     // calculate thread position in N particles
     unsigned idx = blockDim.x * blockIdx.x + threadIdx.x;
 
     // if out of bounds, end thread work
     if (idx >= N) return;
-    
-    // obtain thread's particle params (x,y,z,weight)
-    const float posX = p.posX[idx];
-    const float posY = p.posY[idx];
-    const float posZ = p.posZ[idx];
-    const float weight = p.weight[idx];
+
+    // params of the current thread's particle
+    const float posX = pPosX[idx];
+    const float posY = pPosY[idx];
+    const float posZ = pPosZ[idx];
+    const float weight = pWeight[idx];
 
     // place where the new params will be stored
     float newVelX{};
@@ -56,30 +67,32 @@ __global__ void calculateGravitationVelocity(Particles p, Velocities tmpVel, con
     // loop through all other particles and compute the differences
     for (unsigned j = 0u; j < N; ++j)
     {
-        const float dx = p.posX[j] - posX;
-        const float dy = p.posY[j] - posY;
-        const float dz = p.posZ[j] - posZ;
-        const float jWeight = p.weight[j];
+        const float otherPosX = pPosX[j];
+        const float otherPosY = pPosY[j];
+        const float otherPosZ = pPosZ[j];
+        const float otherWeight = pWeight[j];
+
+        const float dx = otherPosX - posX;
+        const float dy = otherPosY - posY;
+        const float dz = otherPosZ - posZ;
 
         const float r2 = dx * dx + dy * dy + dz * dz;
         const float r = std::sqrt(r2) + MIN_FLOAT;
 
-        const float f = G * weight * jWeight / r2 + MIN_FLOAT;
+        const float f = G * weight * otherWeight / r2 + MIN_FLOAT;
 
-        if (r > COLLISION_DISTANCE)
-        {
-            const float denominator = r * f;
-            newVelX += dx / denominator;
-            newVelY += dy / denominator;
-            newVelZ += dz / denominator;
+        // check for collision distance for all coordinates (instead ternary op)
+        if (r > COLLISION_DISTANCE) {
+            const float denominator = f / r;
+            newVelX += dx * denominator;
+            newVelY += dy * denominator;
+            newVelZ += dz * denominator;
         }
     }
 
     tmpVel.x[idx] = newVelX * (dt / weight);
     tmpVel.y[idx] = newVelY * (dt / weight);
     tmpVel.z[idx] = newVelZ * (dt / weight);
-    
-  
 }// end of calculate_gravitation_velocity
 //----------------------------------------------------------------------------------------------------------------------
 
