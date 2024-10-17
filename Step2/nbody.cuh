@@ -1,16 +1,16 @@
 /**
  * @file      nbody.cuh
  *
- * @author    Name Surname \n
+ * @author    Jan Hol·Ú \n
  *            Faculty of Information Technology \n
  *            Brno University of Technology \n
- *            xlogin00@fit.vutbr.cz
+ *            xholan11@fit.vutbr.cz
  *
  * @brief     PCG Assignment 1
  *
  * @version   2024
  *
- * @date      04 October   2023, 09:00 (created) \n
+ * @date      20 October   2024, 09:00 \n
  */
 
 #ifndef NBODY_CUH
@@ -25,10 +25,19 @@
  */
 struct Particles
 {
-  /********************************************************************************************************************/
-  /*                             TODO: Particle data structure optimized for use on GPU                               */
-  /********************************************************************************************************************/
+    /***************************************************** DONE *********************************************************/
+    /********************************************************************************************************************/
+    /*                             TODO: Particle data structure optimized for use on GPU                               */
+    /********************************************************************************************************************/
+    float* posX;
+    float* posY;
+    float* posZ;
 
+    float* velX;
+    float* velZ;
+    float* velY;
+
+    float* weight;
 
 };
 
