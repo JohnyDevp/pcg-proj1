@@ -183,7 +183,7 @@ __global__ void updateParticles(Particles p, Velocities tmpVel, const unsigned N
     // if out of bounds, end thread work
     if (idx >= N) return;
 
-    // take the 
+    // take the pointers as shortcut per thread
     float* const pPosX = p.posX;
     float* const pPosY = p.posY;
     float* const pPosZ = p.posZ;

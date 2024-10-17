@@ -174,10 +174,11 @@ int main(int argc, char **argv)
 
   for (unsigned s = 0u; s < steps; ++s)
   {
+    /***************************************************** DONE *********************************************************/
     /******************************************************************************************************************/
     /*                                     TODO: GPU kernels invocation                                               */
     /******************************************************************************************************************/
-    calculateGravitationVelocity<<<simGridDim, simBlockDim>>> (dParticles, dTmpVelocities,N,dt);
+    calculateGravitationVelocity<<<simGridDim, simBlockDim>>> (dParticles, dTmpVelocities, N, dt);
     calculateCollisionVelocity <<<simGridDim, simBlockDim >>> (dParticles, dTmpVelocities, N, dt);
     updateParticles <<<simGridDim, simBlockDim >>> (dParticles, dTmpVelocities, N, dt);
   }
@@ -196,17 +197,13 @@ int main(int argc, char **argv)
   /********************************************************************************************************************/
   /*                                     TODO: Memory transfer GPU -> CPU                                             */
   /********************************************************************************************************************/
-
-
   CUDA_CALL(cudaMemcpy(hParticles.posX, dParticles.posX, N * sizeof(float), cudaMemcpyDeviceToHost));
   CUDA_CALL(cudaMemcpy(hParticles.posY, dParticles.posY, N * sizeof(float), cudaMemcpyDeviceToHost));
   CUDA_CALL(cudaMemcpy(hParticles.posZ, dParticles.posZ, N * sizeof(float), cudaMemcpyDeviceToHost));
-
   CUDA_CALL(cudaMemcpy(hParticles.velX, dParticles.velX, N * sizeof(float), cudaMemcpyDeviceToHost));
   CUDA_CALL(cudaMemcpy(hParticles.velY, dParticles.velY, N * sizeof(float), cudaMemcpyDeviceToHost));
   CUDA_CALL(cudaMemcpy(hParticles.velZ, dParticles.velZ, N * sizeof(float), cudaMemcpyDeviceToHost));
-
-  CUDA_CALL(cudaMemcpy(dParticles.weight, hParticles.weight, N * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.weight, dParticles.weight, N * sizeof(float), cudaMemcpyDeviceToHost));
 
   // Compute reference center of mass on CPU
   const float4 refCenterOfMass = centerOfMassRef(md);
