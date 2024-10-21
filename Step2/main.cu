@@ -167,11 +167,11 @@ int main(int argc, char **argv)
       CUDA_CALL(cudaMemcpy(dParticles[i].weight, hParticles.weight, N * sizeof(float), cudaMemcpyHostToDevice));
   }
 
-
+  /***************************************************** DONE *********************************************************/
   /********************************************************************************************************************/
   /*                                  TODO: Set dynamic shared memory computation                                     */
   /********************************************************************************************************************/
-  const std::size_t sharedMemSize = 0;
+  const std::size_t sharedMemSize = simBlockDim * (8 * sizeof(float));
 
   // Start measurement
   const auto start = std::chrono::steady_clock::now();
@@ -181,10 +181,11 @@ int main(int argc, char **argv)
     const unsigned srcIdx = s % 2;        // source particles index
     const unsigned dstIdx = (s + 1) % 2;  // destination particles index
 
+    /***************************************************** DONE *******************************************************/
     /******************************************************************************************************************/
     /*                   TODO: GPU kernel invocation with correctly set dynamic memory size                           */
     /******************************************************************************************************************/
-
+    calculateVelocity<<<simGridDim, simBlockDim, sharedMemSize>>>(dParticles[srcIdx], dParticles[dstIdx], N, dt);
 
   }
 
