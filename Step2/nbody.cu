@@ -33,12 +33,12 @@ __global__ void calculateVelocity(Particles pIn, Particles pOut, const unsigned 
 
     // Shared memory partitioning
     float* const sharedPosX =     sharedMem;
-    float* const sharedPosY =     &sharedPosX[blockDim.x + 1];
-    float* const sharedPosZ =     &sharedPosY[blockDim.x + 1];
-    float* const sharedVelX =     &sharedPosZ[blockDim.x + 1];
-    float* const sharedVelY =     &sharedVelX[blockDim.x + 1];
-    float* const sharedVelZ =     &sharedVelY[blockDim.x + 1];
-    float* const sharedWeight =   &sharedVelZ[blockDim.x + 1];
+    float* const sharedPosY =     &sharedPosX[blockDim.x];
+    float* const sharedPosZ =     &sharedPosY[blockDim.x];
+    float* const sharedVelX =     &sharedPosZ[blockDim.x];
+    float* const sharedVelY =     &sharedVelX[blockDim.x];
+    float* const sharedVelZ =     &sharedVelY[blockDim.x];
+    float* const sharedWeight =   &sharedVelZ[blockDim.x];
     
     // preloaded pointers
     float* const pPosX = pIn.posX;
@@ -49,53 +49,59 @@ __global__ void calculateVelocity(Particles pIn, Particles pOut, const unsigned 
     float* const pVelZ = pIn.velZ;
     float* const pWeight = pIn.weight;
 
-
     // params of the current thread's particle (if the thread has one)
-    const float posX = (idx < N) ? pPosX[idx] : 0.0f;
-    const float posY =  (idx < N) ? pPosY[idx] : 0.0f;
-    const float posZ =  (idx < N) ? pPosZ[idx] : 0.0f;
-    const float velX =  (idx < N) ? pVelX[idx] : 0.0f;
-    const float velY =  (idx < N) ? pVelY[idx] : 0.0f;
-    const float velZ =  (idx < N) ? pVelZ[idx] : 0.0f;
-    const float weight =(idx < N) ? pWeight[idx] : 0.0f;
- 
+    float posX = 0.0f, posY = 0.0f, posZ = 0.0f;
+    float velX = 0.0f, velY = 0.0f, velZ = 0.0f;
+    float weight = 0.0f;
+
+    if (idx < N) {
+        posX = pPosX[idx];
+        posY = pPosY[idx];
+        posZ = pPosZ[idx];
+        velX = pVelX[idx];
+        velY = pVelY[idx];
+        velZ = pVelZ[idx];
+        weight = pWeight[idx];
+    }
 
     // place where the new params will be stored
-    float newVelX_gravitation{};
-    float newVelY_gravitation{};
-    float newVelZ_gravitation{};
+    float newVelX_gravitation = 0.0f;
+    float newVelY_gravitation = 0.0f;
+    float newVelZ_gravitation = 0.0f;
 
-    float newVelX_collision{};
-    float newVelY_collision{};
-    float newVelZ_collision{};
+    float newVelX_collision = 0.0f;
+    float newVelY_collision = 0.0f;
+    float newVelZ_collision = 0.0f;
+
+    const bool isComputationThread = idx < N;
 
     // loop through all other particles and compute the differences
-    for (unsigned j = 0u; j < ceilf((float)N / blockDim.x); ++j)
+    for (unsigned j = 0; j < N; j += blockDim.x)
     {
         // load particles to the shared mem
-        unsigned loadIdx = j * blockDim.x + threadIdx.x;
+        const unsigned loadIdx = j + threadIdx.x;
 
-        // check whether exists the particle that should be load for current thread
+        // check whether the particle, that should be load for current thread, exists
         if (loadIdx < N)
         {
-            sharedPosX[threadIdx.x] =   pPosX[loadIdx];
-            sharedPosY[threadIdx.x] =   pPosY[loadIdx];
-            sharedPosZ[threadIdx.x] =   pPosZ[loadIdx];
-            sharedVelX[threadIdx.x] =   pVelX[loadIdx];
-            sharedVelY[threadIdx.x] =   pVelY[loadIdx];
-            sharedVelZ[threadIdx.x] =   pVelZ[loadIdx];
+            sharedPosX[threadIdx.x] = pPosX[loadIdx];
+            sharedPosY[threadIdx.x] = pPosY[loadIdx];
+            sharedPosZ[threadIdx.x] = pPosZ[loadIdx];
+            sharedVelX[threadIdx.x] = pVelX[loadIdx];
+            sharedVelY[threadIdx.x] = pVelY[loadIdx];
+            sharedVelZ[threadIdx.x] = pVelZ[loadIdx];
             sharedWeight[threadIdx.x] = pWeight[loadIdx];
         }
 
         // sync threads in one block after loading of data
         __syncthreads();
 
-        const int deck = ((j + 1) * blockDim.x > N) ? (N - (j * blockDim.x)) : blockDim.x; //ok
-        if (idx > N) // for the threads that serve only for loading
-        #   pragma unroll
+        const int deck = min(blockDim.x, (N - j));
+        if (isComputationThread) // for the threads that serve only for loading
+        {
+            #pragma unroll
             for (auto i = 0u; i < deck; i++)
             {
-
                 const float otherPosX = sharedPosX[i];
                 const float otherPosY = sharedPosY[i];
                 const float otherPosZ = sharedPosZ[i];
@@ -126,12 +132,12 @@ __global__ void calculateVelocity(Particles pIn, Particles pOut, const unsigned 
                     newVelZ_collision += ((weight * velZ - otherWeight * velZ + 2.f * otherWeight * otherVelZ) / (weight + otherWeight)) - velZ;
                 }
             }
-        
+        }
         // sync threads in one block after computation
         __syncthreads();
     }
 
-    if (idx < N)
+    if (isComputationThread)
     {
         const float dt_over_weight = dt / weight;
         float newVel_X_Out = newVelX_gravitation * dt_over_weight + newVelX_collision;

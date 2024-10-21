@@ -171,7 +171,7 @@ int main(int argc, char **argv)
   /********************************************************************************************************************/
   /*                                  TODO: Set dynamic shared memory computation                                     */
   /********************************************************************************************************************/
-  const std::size_t sharedMemSize = simBlockDim * (8 * sizeof(float));
+  const std::size_t sharedMemSize = simBlockDim * (7 * sizeof(float)) + 1;
 
   // Start measurement
   const auto start = std::chrono::steady_clock::now();
