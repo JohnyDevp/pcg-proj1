@@ -51,7 +51,7 @@ __global__ void calculateGravitationVelocity(Particles p, Velocities tmpVel, con
     float newVelY{};
     float newVelZ{};
 
-    const float G_weight = G * weight;
+    const float G_dt = G * dt;
     // loop through all other particles and compute the differences
     for (unsigned j = 0u; j < N; ++j)
     {
@@ -63,17 +63,16 @@ __global__ void calculateGravitationVelocity(Particles p, Velocities tmpVel, con
         // check for collision distance for all coordinates (instead ternary op)
         if (r > COLLISION_DISTANCE)
         {
-            const float divisor = G_weight * p.weight[j] / (r * r * r);
+            const float divisor = G * dt * p.weight[j] / (r * r * r);
             newVelX += (dx * divisor);
             newVelY += (dy * divisor);
             newVelZ += (dz * divisor);
         }
     }
 
-    const float multiplicator = dt / weight;
-    tmpVel.x[idx] = newVelX * multiplicator;
-    tmpVel.y[idx] = newVelY * multiplicator;
-    tmpVel.z[idx] = newVelZ * multiplicator;
+    tmpVel.x[idx] = newVelX;
+    tmpVel.y[idx] = newVelY;
+    tmpVel.z[idx] = newVelZ;
 } // end of calculate_gravitation_velocity
 //----------------------------------------------------------------------------------------------------------------------
 

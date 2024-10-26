@@ -104,10 +104,6 @@ __global__ void calculateVelocity__(Particles pIn, Particles pOut, const unsigne
  */
 __global__ void calculateVelocity(Particles pIn, Particles pOut, const unsigned N, float dt)
 {
-  /***************************************************** DONE *********************************************************/
-  /********************************************************************************************************************/
-  /*          TODO: CUDA kernel to calculate new particles velocity and position, collapse previous kernels           */
-  /********************************************************************************************************************/
   // calculate thread position in N particles
   unsigned idx = blockDim.x * blockIdx.x + threadIdx.x;
 
@@ -125,14 +121,12 @@ __global__ void calculateVelocity(Particles pIn, Particles pOut, const unsigned 
   const float weight = pIn.weight[idx];
 
   // place where the new params will be stored
-  float newVelX_gravitation{};
-  float newVelY_gravitation{};
-  float newVelZ_gravitation{};
+  float newVelX{};
+  float newVelY{};
+  float newVelZ{};
 
-  float newVelX_collision{};
-  float newVelY_collision{};
-  float newVelZ_collision{};
   // loop through all other particles and compute the differences
+  const float G_dt = G * dt;
   for (unsigned j = 0u; j < N; ++j)
   {
     const float dx = pIn.posX[j] - posX;
@@ -144,42 +138,29 @@ __global__ void calculateVelocity(Particles pIn, Particles pOut, const unsigned 
     if (r > COLLISION_DISTANCE)
     {
       const float otherWeight = pIn.weight[j];
-      const float denominator = G * weight * otherWeight / (r * r * r);
-      newVelX_gravitation += dx * denominator;
-      newVelY_gravitation += dy * denominator;
-      newVelZ_gravitation += dz * denominator;
+      const float denominator = G_dt * otherWeight / (r * r * r);
+      newVelX += dx * denominator;
+      newVelY += dy * denominator;
+      newVelZ += dz * denominator;
     }
     else if (r < COLLISION_DISTANCE && r > 0.f)
     {
       const float otherWeight = pIn.weight[j];
       const float divisor = 1 / (weight + otherWeight);
-      newVelX_collision += ((velX * (weight - otherWeight) + 2.f * otherWeight * pIn.velX[j]) * divisor) - velX;
-      newVelY_collision += ((velY * (weight - otherWeight) + 2.f * otherWeight * pIn.velY[j]) * divisor) - velY;
-      newVelZ_collision += ((velZ * (weight - otherWeight) + 2.f * otherWeight * pIn.velZ[j]) * divisor) - velZ;
+      newVelX += ((velX * (weight - otherWeight) + 2.f * otherWeight * pIn.velX[j]) * divisor) - velX;
+      newVelY += ((velY * (weight - otherWeight) + 2.f * otherWeight * pIn.velY[j]) * divisor) - velY;
+      newVelZ += ((velZ * (weight - otherWeight) + 2.f * otherWeight * pIn.velZ[j]) * divisor) - velZ;
     }
   }
-  const float dt_over_weight = dt / weight;
-  float newVel_X_Out = newVelX_gravitation * dt_over_weight + newVelX_collision;
-  float newVel_Y_Out = newVelY_gravitation * dt_over_weight + newVelY_collision;
-  float newVel_Z_Out = newVelZ_gravitation * dt_over_weight + newVelZ_collision;
 
   //============ update computation
 
-  float velx_final = velX /*original*/ + newVel_X_Out /*new compute vel*/;
-  float vely_final = velY /*original*/ + newVel_Y_Out /*new compute vel*/;
-  float velz_final = velZ /*original*/ + newVel_Z_Out /*new compute vel*/;
-
-  float posx_final = posX /*original*/ + velx_final * dt;
-  float posy_final = posY /*original*/ + vely_final * dt;
-  float posz_final = posZ /*original*/ + velz_final * dt;
-
-  // ============ update save
-  pOut.posX[idx] = posx_final;
-  pOut.posY[idx] = posy_final;
-  pOut.posZ[idx] = posz_final;
-  pOut.velX[idx] = velx_final;
-  pOut.velY[idx] = vely_final;
-  pOut.velZ[idx] = velz_final;
+  pOut.velX[idx] = velX + newVelX;
+  pOut.velY[idx] = velY + newVelY;
+  pOut.velZ[idx] = velZ + newVelZ;
+  pOut.posX[idx] = posX + (velX + newVelX) * dt;
+  pOut.posY[idx] = posY + (velY + newVelY) * dt;
+  pOut.posZ[idx] = posZ + (velZ + newVelZ) * dt;
 
 } // end of calculate_gravitation_velocity
 //----------------------------------------------------------------------------------------------------------------------
