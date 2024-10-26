@@ -1,0 +1,206 @@
+### Průběžné
+|   N   | CPU [s]  | Step 0 [s] | Step 1 [s] | Step 2 [s] |
+|:-----:|----------|------------|------------|------------|
+|  4096 | 0.492139 | 0.319928   | 0.195212   | 0.182504   |
+|  8192 | 1.471328 | 0.637738   | 0.391167   | 0.364442   |
+| 12288 | 2.478942 | 0.955836   | 0.585137   | 0.546407   |
+| 16384 | 3.386801 | 1.273810   | 0.777620   | 0.728325   |
+| 20480 | 5.059240 | 1.591367   | 0.974317   | 0.910280   |
+| 24576 | 7.112179 | 1.910142   | 1.166012   | 1.092191   |
+| 28672 | 9.892856 | 2.228769   | 1.359236   | 1.274128   |
+| 32768 | 12.59829 | 2.547795   | 1.560751   | 1.455803   |
+| 36864 | 15.54297 | 2.867687   | 1.760385   | 1.637964   |
+| 40960 | 19.36099 | 3.186936   | 1.952142   | 1.819870   |
+| 45056 | 23.48723 | 3.507320   | 2.144038   | 2.002504   |
+| 49152 | 27.69359 | 3.827279   | 2.336552   | 2.183770   |
+| 53248 | 32.63063 | 4.147363   | 2.530492   | 2.365751   |
+| 57344 | 37.43660 | 7.060634   | 4.414751   | 4.068941   |
+| 61440 | 42.85863 | 7.581609   | 4.746868   | 4.359887   |
+| 65536 | 49.46104 | 8.099837   | 5.076082   | 4.650517   |
+| 69632 | 55.14939 | 8.620973   | 5.389197   | 4.941226   |
+| 73728 | 62.04446 | 9.136154   | 5.705729   | 5.231902   |
+| 77824 | 69.26138 | 9.648988   | 6.018754   | 5.522417   |
+| 81920 | 76.60071 | 10.166807  | 6.331824   | 5.813216   |
+
+
+   N      Time
+ 4096:  1.345666s
+ 8192:  2.645600s
+12288:  4.207773s
+16384:  6.008657s
+20480:  7.597996s
+24576:  13.718596s
+28672:  16.668427s
+32768:  22.320683s
+36864:  25.952936s
+40960:  29.448685s
+45056:  40.627598s
+49152:  44.555965s
+53248:  49.870045s
+57344:  54.372559s
+61440:  61.731155s
+65536:  80.217430s
+69632:  86.131310s
+73728:  92.294426s
+77824:  99.809586s
+81920:  110.716133s
+
+
+
+/**
+ * CUDA kernel to calculate gravitation velocity
+ * @param p      - particles
+ * @param tmpVel - temp array for velocities
+ * @param N      - Number of particles
+ * @param dt     - Size of the time step
+ */
+__global__ void calculateGravitationVelocity(Particles p, Velocities tmpVel, const unsigned N, float dt)
+{
+    /***************************************************** DONE *********************************************************/
+    /********************************************************************************************************************/
+    /*              TODO: CUDA kernel to calculate gravitation velocity, see reference CPU version                      */
+    /********************************************************************************************************************/
+
+    // calculate thread position in N particles
+    unsigned idx = blockDim.x * blockIdx.x + threadIdx.x;
+
+    // if out of bounds, end thread work
+    if (idx >= N)
+        return;
+
+    // params of the current thread's particle
+    const float posX = p.posX[idx];
+    const float posY = p.posY[idx];
+    const float posZ = p.posZ[idx];
+    const float weight = p.weight[idx];
+
+    // place where the new params will be stored
+    float newVelX{};
+    float newVelY{};
+    float newVelZ{};
+
+    // loop through all other particles and compute the differences
+    for (unsigned j = 0u; j < N; ++j)
+    {
+        const float dx = p.posX[j] - posX;
+        const float dy = p.posY[j] - posY;
+        const float dz = p.posZ[j] - posZ;
+
+        const float r2 = dx * dx + dy * dy + dz * dz;
+        const float r = std::sqrt(r2) + MIN_FLOAT;
+
+        const float f = G * weight * p.weight[j] / r2 + MIN_FLOAT;
+
+        // check for collision distance for all coordinates (instead ternary op)
+        if (r > COLLISION_DISTANCE)
+        {
+            const float divisor = 1 / (r * f);
+            newVelX += (dx * divisor);
+            newVelY += (dy * divisor);
+            newVelZ += (dz * divisor);
+        }
+    }
+
+    const float multiplicator = dt / weight;
+    tmpVel.x[idx] = newVelX * multiplicator;
+    tmpVel.y[idx] = newVelY * multiplicator;
+    tmpVel.z[idx] = newVelZ * multiplicator;
+} // end of calculate_gravitation_velocity
+//----------------------------------------------------------------------------------------------------------------------
+
+/**
+ * CUDA kernel to calculate collision velocity
+ * @param p      - particles
+ * @param tmpVel - temp array for velocities
+ * @param N      - Number of particles
+ * @param dt     - Size of the time step
+ */
+__global__ void calculateCollisionVelocity(Particles p, Velocities tmpVel, const unsigned N, float dt)
+{
+    /***************************************************** DONE *********************************************************/
+    /********************************************************************************************************************/
+    /*              TODO: CUDA kernel to calculate collision velocity, see reference CPU version                        */
+    /********************************************************************************************************************/
+
+    // calculate thread position in N particles
+    unsigned idx = blockDim.x * blockIdx.x + threadIdx.x;
+
+    // if out of bounds, end thread work
+    if (idx >= N)
+        return;
+
+    // obtain thread's particle params ({pos;vel}x,y,z,weight)
+    const float posX = p.posX[idx];
+    const float posY = p.posY[idx];
+    const float posZ = p.posZ[idx];
+    const float velX = p.velX[idx];
+    const float velY = p.velY[idx];
+    const float velZ = p.velZ[idx];
+    const float weight = p.weight[idx];
+
+    // place where the new params will be stored
+    float newVelX{};
+    float newVelY{};
+    float newVelZ{};
+
+    for (unsigned j = 0u; j < N; ++j)
+    {
+        const float dx = p.posX[j] - posX;
+        const float dy = p.posY[j] - posY;
+        const float dz = p.posZ[j] - posZ;
+
+        const float r2 = dx * dx + dy * dy + dz * dz;
+        const float r = std::sqrt(r2);
+
+        const float otherWeight = p.weight[j];
+        if (r > 0.f && r < COLLISION_DISTANCE)
+        {
+            const float divisor = 1 / (weight + otherWeight);
+            newVelX += ((weight * velX - otherWeight * velX + 2.f * otherWeight * p.velX[j]) * divisor) - velX;
+            newVelY += ((weight * velY - otherWeight * velY + 2.f * otherWeight * p.velY[j]) * divisor) - velY;
+            newVelZ += ((weight * velZ - otherWeight * velZ + 2.f * otherWeight * p.velZ[j]) * divisor) - velZ;
+        }
+    }
+
+    tmpVel.x[idx] += newVelX;
+    tmpVel.y[idx] += newVelY;
+    tmpVel.z[idx] += newVelZ;
+
+} // end of calculate_collision_velocity
+//----------------------------------------------------------------------------------------------------------------------
+
+/**
+ * CUDA kernel to update particles
+ * @param p      - particles
+ * @param tmpVel - temp array for velocities
+ * @param N      - Number of particles
+ * @param dt     - Size of the time step
+ */
+__global__ void updateParticles(Particles p, Velocities tmpVel, const unsigned N, float dt)
+{
+    /***************************************************** DONE *********************************************************/
+    /********************************************************************************************************************/
+    /*             TODO: CUDA kernel to update particles velocities and positions, see reference CPU version            */
+    /********************************************************************************************************************/
+
+    // calculate thread position in N particles
+    unsigned idx = blockDim.x * blockIdx.x + threadIdx.x;
+
+    // if out of bounds, end thread work
+    if (idx >= N)
+        return;
+
+    float velX = p.velX[idx] + tmpVel.x[idx];
+    float velY = p.velY[idx] + tmpVel.y[idx];
+    float velZ = p.velZ[idx] + tmpVel.z[idx];
+
+    p.posX[idx] += velX * dt;
+    p.posY[idx] += velY * dt;
+    p.posZ[idx] += velZ * dt;
+
+    p.velX[idx] = velX;
+    p.velY[idx] = velY;
+    p.velZ[idx] = velZ;
+
+} // end of update_particle
+//----------------------------------------------------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 /**
  * @file      nbody.cu
  *
- * @author    Jan Hol·Ú \n
+ * @author    Jan Hol√°≈à \n
  *            Faculty of Information Technology \n
  *            Brno University of Technology \n
  *            xholan1100@fit.vutbr.cz
