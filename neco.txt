@@ -46,161 +46,47 @@
 81920:  110.716133s
 
 
-
-/**
- * CUDA kernel to calculate gravitation velocity
- * @param p      - particles
- * @param tmpVel - temp array for velocities
- * @param N      - Number of particles
- * @param dt     - Size of the time step
- */
-__global__ void calculateGravitationVelocity(Particles p, Velocities tmpVel, const unsigned N, float dt)
-{
-    /***************************************************** DONE *********************************************************/
-    /********************************************************************************************************************/
-    /*              TODO: CUDA kernel to calculate gravitation velocity, see reference CPU version                      */
-    /********************************************************************************************************************/
-
-    // calculate thread position in N particles
-    unsigned idx = blockDim.x * blockIdx.x + threadIdx.x;
-
-    // if out of bounds, end thread work
-    if (idx >= N)
-        return;
-
-    // params of the current thread's particle
-    const float posX = p.posX[idx];
-    const float posY = p.posY[idx];
-    const float posZ = p.posZ[idx];
-    const float weight = p.weight[idx];
-
-    // place where the new params will be stored
-    float newVelX{};
-    float newVelY{};
-    float newVelZ{};
-
-    // loop through all other particles and compute the differences
-    for (unsigned j = 0u; j < N; ++j)
-    {
-        const float dx = p.posX[j] - posX;
-        const float dy = p.posY[j] - posY;
-        const float dz = p.posZ[j] - posZ;
-
-        const float r2 = dx * dx + dy * dy + dz * dz;
-        const float r = std::sqrt(r2) + MIN_FLOAT;
-
-        const float f = G * weight * p.weight[j] / r2 + MIN_FLOAT;
-
-        // check for collision distance for all coordinates (instead ternary op)
-        if (r > COLLISION_DISTANCE)
-        {
-            const float divisor = 1 / (r * f);
-            newVelX += (dx * divisor);
-            newVelY += (dy * divisor);
-            newVelZ += (dz * divisor);
-        }
-    }
-
-    const float multiplicator = dt / weight;
-    tmpVel.x[idx] = newVelX * multiplicator;
-    tmpVel.y[idx] = newVelY * multiplicator;
-    tmpVel.z[idx] = newVelZ * multiplicator;
-} // end of calculate_gravitation_velocity
-//----------------------------------------------------------------------------------------------------------------------
-
-/**
- * CUDA kernel to calculate collision velocity
- * @param p      - particles
- * @param tmpVel - temp array for velocities
- * @param N      - Number of particles
- * @param dt     - Size of the time step
- */
-__global__ void calculateCollisionVelocity(Particles p, Velocities tmpVel, const unsigned N, float dt)
-{
-    /***************************************************** DONE *********************************************************/
-    /********************************************************************************************************************/
-    /*              TODO: CUDA kernel to calculate collision velocity, see reference CPU version                        */
-    /********************************************************************************************************************/
-
-    // calculate thread position in N particles
-    unsigned idx = blockDim.x * blockIdx.x + threadIdx.x;
-
-    // if out of bounds, end thread work
-    if (idx >= N)
-        return;
-
-    // obtain thread's particle params ({pos;vel}x,y,z,weight)
-    const float posX = p.posX[idx];
-    const float posY = p.posY[idx];
-    const float posZ = p.posZ[idx];
-    const float velX = p.velX[idx];
-    const float velY = p.velY[idx];
-    const float velZ = p.velZ[idx];
-    const float weight = p.weight[idx];
-
-    // place where the new params will be stored
-    float newVelX{};
-    float newVelY{};
-    float newVelZ{};
-
-    for (unsigned j = 0u; j < N; ++j)
-    {
-        const float dx = p.posX[j] - posX;
-        const float dy = p.posY[j] - posY;
-        const float dz = p.posZ[j] - posZ;
-
-        const float r2 = dx * dx + dy * dy + dz * dz;
-        const float r = std::sqrt(r2);
-
-        const float otherWeight = p.weight[j];
-        if (r > 0.f && r < COLLISION_DISTANCE)
-        {
-            const float divisor = 1 / (weight + otherWeight);
-            newVelX += ((weight * velX - otherWeight * velX + 2.f * otherWeight * p.velX[j]) * divisor) - velX;
-            newVelY += ((weight * velY - otherWeight * velY + 2.f * otherWeight * p.velY[j]) * divisor) - velY;
-            newVelZ += ((weight * velZ - otherWeight * velZ + 2.f * otherWeight * p.velZ[j]) * divisor) - velZ;
-        }
-    }
-
-    tmpVel.x[idx] += newVelX;
-    tmpVel.y[idx] += newVelY;
-    tmpVel.z[idx] += newVelZ;
-
-} // end of calculate_collision_velocity
-//----------------------------------------------------------------------------------------------------------------------
-
-/**
- * CUDA kernel to update particles
- * @param p      - particles
- * @param tmpVel - temp array for velocities
- * @param N      - Number of particles
- * @param dt     - Size of the time step
- */
-__global__ void updateParticles(Particles p, Velocities tmpVel, const unsigned N, float dt)
-{
-    /***************************************************** DONE *********************************************************/
-    /********************************************************************************************************************/
-    /*             TODO: CUDA kernel to update particles velocities and positions, see reference CPU version            */
-    /********************************************************************************************************************/
-
-    // calculate thread position in N particles
-    unsigned idx = blockDim.x * blockIdx.x + threadIdx.x;
-
-    // if out of bounds, end thread work
-    if (idx >= N)
-        return;
-
-    float velX = p.velX[idx] + tmpVel.x[idx];
-    float velY = p.velY[idx] + tmpVel.y[idx];
-    float velZ = p.velZ[idx] + tmpVel.z[idx];
-
-    p.posX[idx] += velX * dt;
-    p.posY[idx] += velY * dt;
-    p.posZ[idx] += velZ * dt;
-
-    p.velX[idx] = velX;
-    p.velY[idx] = velY;
-    p.velZ[idx] = velZ;
-
-} // end of update_particle
-//----------------------------------------------------------------------------------------------------------------------
+(env) (base) [johnny@fedora] pcg-proj1 $ ./runProgressBenchmark.sh build/nbody2
+   N      Time
+ 4096:  0.649583s
+ 8192:  1.201874s
+12288:  3.605970s
+16384:  4.806808s
+20480:  6.010661s
+24576:  10.811121s
+28672:  12.667281s
+32768:  19.327358s
+36864:  21.745010s
+40960:  24.168678s
+45056:  33.217564s
+49152:  36.245060s
+53248:  47.102573s
+57344:  50.733147s
+61440:  54.367565s
+65536:  67.896111s
+69632:  72.292343s
+73728:  86.950600s
+77824:  91.799454s
+81920:  97.201912s
+(env) (base) [johnny@fedora] pcg-proj1 $ ./runProgressBenchmark.sh build/nbody1
+   N      Time
+ 4096:  0.778741s
+ 8192:  1.496195s
+12288:  2.326324s
+16384:  3.547955s
+20480:  6.767211s
+24576:  8.974773s
+28672:  10.734651s
+32768:  12.383167s
+36864:  13.980378s
+40960:  16.669613s
+45056:  24.821678s
+49152:  27.498194s
+53248:  30.206694s
+57344:  32.745644s
+61440:  37.791641s
+65536:  48.064095s
+69632:  51.940269s
+73728:  55.639137s
+77824:  59.709351s
+81920:  67.785950s
