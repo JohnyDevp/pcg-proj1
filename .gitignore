@@ -4,4 +4,4 @@ out/
 PyVirtEnv/
 Benchmark/
 .vscode/*
-Tests/
+Tests/Outputs/
