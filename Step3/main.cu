@@ -191,8 +191,8 @@ int main(int argc, char **argv)
   /********************************************************************************************************************/
   /*                                  TODO: Set dynamic shared memory computation                                     */
   /********************************************************************************************************************/
-  const std::size_t sharedMemSize = 0;
-  const std::size_t redSharedMemSize = 0; // you can use warpSize variable
+  const std::size_t sharedMemSize = simBlockDim * (7 * sizeof(float)) + 1;
+  const std::size_t redSharedMemSize = redBlockDim * sizeof(float4); // you can use warpSize variable
 
   // Start measurement
   const auto start = std::chrono::steady_clock::now();
@@ -202,9 +202,7 @@ int main(int argc, char **argv)
     const unsigned srcIdx = s % 2;       // source particles index
     const unsigned dstIdx = (s + 1) % 2; // destination particles index
 
-    /******************************************************************************************************************/
-    /*                   TODO: GPU kernel invocation with correctly set dynamic memory size                           */
-    /******************************************************************************************************************/
+    calculateVelocity<<<simGridDim, simBlockDim, sharedMemSize>>>(dParticles[srcIdx], dParticles[dstIdx], N, dt);
   }
 
   const unsigned resIdx = steps % 2; // result particles index
@@ -212,6 +210,7 @@ int main(int argc, char **argv)
   /********************************************************************************************************************/
   /*                                 TODO: Invocation of center of mass kernel                                        */
   /********************************************************************************************************************/
+  centerOfMass<<<redGridDim, redBlockDim, redSharedMemSize>>>(dParticles[resIdx], dCenterOfMass, dLock, N);
 
   // Wait for all CUDA kernels to finish
   CUDA_CALL(cudaDeviceSynchronize());
@@ -226,6 +225,15 @@ int main(int argc, char **argv)
   /********************************************************************************************************************/
   /*                                     TODO: Memory transfer GPU -> CPU                                             */
   /********************************************************************************************************************/
+  CUDA_CALL(cudaMemcpy(hParticles.posX, dParticles[resIdx].posX, N * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.posY, dParticles[resIdx].posY, N * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.posZ, dParticles[resIdx].posZ, N * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.velX, dParticles[resIdx].velX, N * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.velY, dParticles[resIdx].velY, N * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.velZ, dParticles[resIdx].velZ, N * sizeof(float), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hParticles.weight, dParticles[resIdx].weight, N * sizeof(float), cudaMemcpyDeviceToHost));
+
+  CUDA_CALL(cudaMemcpy(hCenterOfMass, dCenterOfMass, sizeof(float4), cudaMemcpyDeviceToHost));
 
   // Compute reference center of mass on CPU
   const float4 refCenterOfMass = centerOfMassRef(md);
@@ -249,10 +257,29 @@ int main(int argc, char **argv)
   /********************************************************************************************************************/
   /*                                     TODO: GPU side memory deallocation                                           */
   /********************************************************************************************************************/
+  for (auto i = 0u; i < 2; i++)
+  {
+    CUDA_CALL(cudaFree(dParticles[i].posX));
+    CUDA_CALL(cudaFree(dParticles[i].posY));
+    CUDA_CALL(cudaFree(dParticles[i].posZ));
+    CUDA_CALL(cudaFree(dParticles[i].velX));
+    CUDA_CALL(cudaFree(dParticles[i].velY));
+    CUDA_CALL(cudaFree(dParticles[i].velZ));
+    CUDA_CALL(cudaFree(dParticles[i].weight));
+  }
+  CUDA_CALL(cudaFree(dCenterOfMass));
+  CUDA_CALL(cudaFree(dLock));
 
   /********************************************************************************************************************/
   /*                                     TODO: CPU side memory deallocation                                           */
   /********************************************************************************************************************/
-
+  CUDA_CALL(cudaFreeHost(hParticles.posX));
+  CUDA_CALL(cudaFreeHost(hParticles.posY));
+  CUDA_CALL(cudaFreeHost(hParticles.posZ));
+  CUDA_CALL(cudaFreeHost(hParticles.velX));
+  CUDA_CALL(cudaFreeHost(hParticles.velY));
+  CUDA_CALL(cudaFreeHost(hParticles.velZ));
+  CUDA_CALL(cudaFreeHost(hParticles.weight));
+  CUDA_CALL(cudaFreeHost(hCenterOfMass));
 } // end of main
 //----------------------------------------------------------------------------------------------------------------------
