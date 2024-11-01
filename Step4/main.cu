@@ -1,16 +1,16 @@
 /**
  * @file      main.cu
  *
- * @author    Name Surname \n
+ * @author    Jan Holáň \n
  *            Faculty of Information Technology \n
  *            Brno University of Technology \n
- *            xlogin00@fit.vutbr.cz
+ *            xholan11@fit.vutbr.cz
  *
  * @brief     PCG Assignment 1
  *
  * @version   2024
  *
- * @date      04 October   2023, 09:00 (created) \n
+ * @date      31 October   2024, 09:00 \n
  */
 
 #include <cmath>
@@ -25,18 +25,19 @@
  * @brief CUDA error checking macro
  * @param call CUDA API call
  */
-#define CUDA_CALL(call) \
-  do { \
-    const cudaError_t _error = (call); \
-    if (_error != cudaSuccess) \
-    { \
+#define CUDA_CALL(call)                                                                                 \
+  do                                                                                                    \
+  {                                                                                                     \
+    const cudaError_t _error = (call);                                                                  \
+    if (_error != cudaSuccess)                                                                          \
+    {                                                                                                   \
       std::fprintf(stderr, "CUDA error (%s:%d): %s\n", __FILE__, __LINE__, cudaGetErrorString(_error)); \
-      std::exit(EXIT_FAILURE); \
-    } \
-  } while(0)
+      std::exit(EXIT_FAILURE);                                                                          \
+    }                                                                                                   \
+  } while (0)
 
 /**
- * Main rotine
+ * Main routine
  * @param argc
  * @param argv
  * @return
@@ -50,19 +51,19 @@ int main(int argc, char **argv)
   }
 
   // Number of particles
-  const unsigned N                   = static_cast<unsigned>(std::stoul(argv[1]));
+  const unsigned N = static_cast<unsigned>(std::stoul(argv[1]));
   // Length of time step
-  const float    dt                  = std::stof(argv[2]);
+  const float dt = std::stof(argv[2]);
   // Number of steps
-  const unsigned steps               = static_cast<unsigned>(std::stoul(argv[3]));
+  const unsigned steps = static_cast<unsigned>(std::stoul(argv[3]));
   // Number of thread blocks
-  const unsigned simBlockDim         = static_cast<unsigned>(std::stoul(argv[4]));
+  const unsigned simBlockDim = static_cast<unsigned>(std::stoul(argv[4]));
   // Write frequency
-  const unsigned writeFreq           = static_cast<unsigned>(std::stoul(argv[5]));
+  const unsigned writeFreq = static_cast<unsigned>(std::stoul(argv[5]));
   // number of reduction threads
   const unsigned redTotalThreadCount = static_cast<unsigned>(std::stoul(argv[6]));
   // Number of reduction threads/blocks
-  const unsigned redBlockDim         = static_cast<unsigned>(std::stoul(argv[7]));
+  const unsigned redBlockDim = static_cast<unsigned>(std::stoul(argv[7]));
 
   // Size of the simulation CUDA grid - number of blocks
   const unsigned simGridDim = (N + simBlockDim - 1) / simBlockDim;
@@ -83,13 +84,11 @@ int main(int argc, char **argv)
   const std::size_t recordsCount = (writeFreq > 0) ? (steps + writeFreq - 1) / writeFreq : 0;
 
   Particles hParticles{};
-  float4*   hCenterOfMass{};
+  float4 *hCenterOfMass{};
 
   /********************************************************************************************************************/
   /*                              TODO: CPU side memory allocation (pinned)                                           */
   /********************************************************************************************************************/
-
-
 
   /********************************************************************************************************************/
   /*                              TODO: Fill memory descriptor layout                                                 */
@@ -100,14 +99,14 @@ int main(int argc, char **argv)
    *                            Stride of two            Offset of the first
    *       Data pointer       consecutive elements        element in FLOATS,
    *                          in FLOATS, not bytes            not bytes
-  */
-  MemDesc md(nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
-             nullptr,                 0,                          0,
+   */
+  MemDesc md(nullptr, 0, 0,
+             nullptr, 0, 0,
+             nullptr, 0, 0,
+             nullptr, 0, 0,
+             nullptr, 0, 0,
+             nullptr, 0, 0,
+             nullptr, 0, 0,
              N,
              recordsCount);
 
@@ -119,38 +118,31 @@ int main(int argc, char **argv)
     h5Helper.init();
     h5Helper.readParticleData();
   }
-  catch (const std::exception& e)
+  catch (const std::exception &e)
   {
     std::fprintf(stderr, "Error: %s\n", e.what());
     return EXIT_FAILURE;
   }
 
   Particles dParticles[2]{};
-  float4*   dCenterOfMass{};
-  int*      dLock{};
+  float4 *dCenterOfMass{};
+  int *dLock{};
 
   /********************************************************************************************************************/
   /*                                     TODO: GPU side memory allocation                                             */
   /********************************************************************************************************************/
 
-  
-
   /********************************************************************************************************************/
   /*                                     TODO: Memory transfer CPU -> GPU                                             */
   /********************************************************************************************************************/
-
-
 
   /********************************************************************************************************************/
   /*                                     TODO: Clear GPU center of mass                                               */
   /********************************************************************************************************************/
 
-
-
   /********************************************************************************************************************/
   /*                           TODO: Declare and create necessary CUDA streams and events                             */
   /********************************************************************************************************************/
-
 
   // Get CUDA device warp size
   int device;
@@ -162,8 +154,8 @@ int main(int argc, char **argv)
   /********************************************************************************************************************/
   /*                                  TODO: Set dynamic shared memory computation                                     */
   /********************************************************************************************************************/
-  const std::size_t sharedMemSize    = 0;
-  const std::size_t redSharedMemSize = 0;   // you can use warpSize variable
+  const std::size_t sharedMemSize = 0;
+  const std::size_t redSharedMemSize = 0; // you can use warpSize variable
 
   // Lambda for checking if we should write current step to the file
   auto shouldWrite = [writeFreq](unsigned s) -> bool
@@ -188,26 +180,20 @@ int main(int argc, char **argv)
   /********************************************************************************************************************/
   for (unsigned s = 0u; s < steps; ++s)
   {
-    const unsigned srcIdx = s % 2;        // source particles index
-    const unsigned dstIdx = (s + 1) % 2;  // destination particles index
+    const unsigned srcIdx = s % 2;       // source particles index
+    const unsigned dstIdx = (s + 1) % 2; // destination particles index
 
     /******************************************************************************************************************/
     /*                TODO: GPU kernels invocation with correctly set dynamic memory size and stream                  */
     /******************************************************************************************************************/
-
-
-
-    
   }
 
-  const unsigned resIdx = steps % 2;    // result particles index
+  const unsigned resIdx = steps % 2; // result particles index
 
   /********************************************************************************************************************/
   /*                          TODO: Invocation of center of mass kernel, do not forget to add                         */
   /*                              additional synchronization and set appropriate stream                               */
   /********************************************************************************************************************/
-
-
 
   // Wait for all CUDA kernels to finish
   CUDA_CALL(cudaDeviceSynchronize());
@@ -222,8 +208,6 @@ int main(int argc, char **argv)
   /********************************************************************************************************************/
   /*                                     TODO: Memory transfer GPU -> CPU                                             */
   /********************************************************************************************************************/
-
-
 
   // Compute reference center of mass on CPU
   const float4 refCenterOfMass = centerOfMassRef(md);
@@ -248,18 +232,13 @@ int main(int argc, char **argv)
   /*                                  TODO: CUDA streams and events destruction                                       */
   /********************************************************************************************************************/
 
-
-
   /********************************************************************************************************************/
   /*                                     TODO: GPU side memory deallocation                                           */
   /********************************************************************************************************************/
-
-  
 
   /********************************************************************************************************************/
   /*                                     TODO: CPU side memory deallocation                                           */
   /********************************************************************************************************************/
 
-
-}// end of main
+} // end of main
 //----------------------------------------------------------------------------------------------------------------------

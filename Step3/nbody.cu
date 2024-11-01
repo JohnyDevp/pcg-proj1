@@ -144,7 +144,7 @@ __global__ void calculateVelocity(Particles pIn, Particles pOut, const unsigned 
  * @param a - First particle (inout)
  * @param b - Second particle (in)
  */
-__device__ static void centerOfMassReduction(float4 &a, const float4 &b)
+__device__ static inline void centerOfMassReduction(float4 &a, const float4 &b)
 {
   float4 d = {b.x - a.x,
               b.y - a.y,
