@@ -49,13 +49,15 @@ N Time
 ### Krok 0: Základní implementace
 
 **Vyskytla se nějaká anomálie v naměřených časech? Pokud ano, vysvětlete:**
+Za anomálii můžeme považovat téměř dvouvteřinový rozdíl ve výpočtech s počty částic 69632 a 73728. Ačkoli je nejvíc k více než jednovteřinovým nárůstům dochází v časech vícekrát, tento rozdíl je nejdramatičtější. Všechny rozdíly budou pravděpodobně způsobeny výpadky paměti, kdy pro zmíněné počty částic dojde bude velikost bloků taková, že částice načtené do CACHE v ní nevydrží do další iterace.
 
 ### Krok 1: Sloučení kernelů
 
 **Došlo ke zrychlení?**
-
+Ano
 **Popište hlavní důvody:**
-
+Došlo ke snížení celkového počtu iterací, kdy v kroku 1 byl proveden dvojnásobný počet těchto iterací.
+Zároveň byl optimalizován přístup do paměti při aktualizaci polohy jednotlivých částic a upravení výpočtu, pro minimalizaci nutných výpočetních operací.
 ### Krok 2: Sdílená paměť
 
 **Došlo ke zrychlení?**

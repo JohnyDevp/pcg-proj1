@@ -169,11 +169,8 @@ __global__ void centerOfMass(Particles p, float4 *com, int *lock, const unsigned
   extern __shared__ float4 sharedCom[];
 
   unsigned tidx = blockDim.x * blockIdx.x + threadIdx.x;
-  // init the shared memory .... all positions at SM have to be zero
-  sharedCom[threadIdx.x] = {0.0f, 0.0f, 0.0f, 0.0f};
 
-  if (tidx >= N)
-    return;
+  sharedCom[threadIdx.x] = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
 
   __syncthreads();
 
@@ -183,11 +180,15 @@ __global__ void centerOfMass(Particles p, float4 *com, int *lock, const unsigned
     tidx += blockDim.x * gridDim.x;
   }
 
+  __syncthreads();
+
   // go from the left edge of the blocks, and reduce the number
   for (unsigned stride = blockDim.x / 2; stride > 0; stride >>= 1)
   {
     if (threadIdx.x < stride)
+    {
       centerOfMassReduction(sharedCom[threadIdx.x], sharedCom[threadIdx.x + stride]);
+    }
     __syncthreads();
   }
 
@@ -195,7 +196,9 @@ __global__ void centerOfMass(Particles p, float4 *com, int *lock, const unsigned
   if (threadIdx.x == 0)
   {
     // lock access to the global memory
-    atomicCAS(lock, 0, 1);
+    // Busy-wait (spin) until the lock becomes available.
+    while (atomicCAS(lock, 0, 1) != 0)
+      ;
     centerOfMassReduction(*com, sharedCom[0]);
     // release the lock
     atomicExch(lock, 0);

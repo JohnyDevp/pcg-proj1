@@ -1,16 +1,16 @@
 /**
  * @file      nbody.cuh
  *
- * @author    Name Surname \n
+ * @author    Jan Holan \n
  *            Faculty of Information Technology \n
  *            Brno University of Technology \n
- *            xlogin00@fit.vutbr.cz
+ *            xholan1100@fit.vutbr.cz
  *
  * @brief     PCG Assignment 1
  *
  * @version   2024
  *
- * @date      04 October   2023, 09:00 (created) \n
+ * @date      08 November   2024, 09:00 \n
  */
 
 #ifndef NBODY_CUH
@@ -25,11 +25,19 @@
  */
 struct Particles
 {
+  /***************************************************** DONE *********************************************************/
   /********************************************************************************************************************/
   /*                             TODO: Particle data structure optimized for use on GPU                               */
   /********************************************************************************************************************/
+  float *posX;
+  float *posY;
+  float *posZ;
 
+  float *velX;
+  float *velZ;
+  float *velY;
 
+  float *weight;
 };
 
 /**
@@ -39,10 +47,10 @@ struct Particles
  * @param N    - Number of particles
  * @param dt   - Size of the time step
  */
-__global__ void calculateVelocity(Particles      pIn,
-                                  Particles      pOut,
+__global__ void calculateVelocity(Particles pIn,
+                                  Particles pOut,
                                   const unsigned N,
-                                  float          dt);
+                                  float dt);
 
 /**
  * CUDA kernel to calculate particles center of mass
@@ -51,15 +59,15 @@ __global__ void calculateVelocity(Particles      pIn,
  * @param lock - pointer to a user-implemented lock
  * @param N    - Number of particles
  */
-__global__ void centerOfMass(Particles      p,
-                             float4*        com,
-                             int*           lock,
+__global__ void centerOfMass(Particles p,
+                             float4 *com,
+                             int *lock,
                              const unsigned N);
 
 /**
  * CPU implementation of the Center of Mass calculation
  * @param memDesc - Memory descriptor of particle data on CPU side
  */
-float4 centerOfMassRef(MemDesc& memDesc);
+float4 centerOfMassRef(MemDesc &memDesc);
 
 #endif /* NBODY_H */

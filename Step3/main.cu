@@ -175,11 +175,12 @@ int main(int argc, char **argv)
     CUDA_CALL(cudaMemcpy(dParticles[i].velZ, hParticles.velZ, N * sizeof(float), cudaMemcpyHostToDevice));
     CUDA_CALL(cudaMemcpy(dParticles[i].weight, hParticles.weight, N * sizeof(float), cudaMemcpyHostToDevice));
   }
-  CUDA_CALL(cudaMemcpy(dCenterOfMass, hCenterOfMass, sizeof(float4), cudaMemcpyHostToDevice));
 
   /********************************************************************************************************************/
   /*                                     TODO: Clear GPU center of mass                                               */
   /********************************************************************************************************************/
+  CUDA_CALL(cudaMemset(dCenterOfMass, 0, sizeof(float4)));
+  CUDA_CALL(cudaMemset(dLock, 0, sizeof(int)));
 
   // Get CUDA device warp size
   int device;
@@ -210,6 +211,7 @@ int main(int argc, char **argv)
   /********************************************************************************************************************/
   /*                                 TODO: Invocation of center of mass kernel                                        */
   /********************************************************************************************************************/
+
   centerOfMass<<<redGridDim, redBlockDim, redSharedMemSize>>>(dParticles[resIdx], dCenterOfMass, dLock, N);
 
   // Wait for all CUDA kernels to finish
