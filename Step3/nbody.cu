@@ -196,7 +196,7 @@ __global__ void centerOfMass(Particles p, float4 *com, int *lock, const unsigned
   if (threadIdx.x == 0)
   {
     // lock access to the global memory
-    // Busy-wait (spin) until the lock becomes available.
+    // busy-wait (spin) until the lock becomes available.
     while (atomicCAS(lock, 0, 1) != 0)
       ;
     centerOfMassReduction(*com, sharedCom[0]);

@@ -172,12 +172,12 @@ int main(int argc, char **argv)
     CUDA_CALL(cudaMemcpy(dParticles[i].velZ, hParticles.velZ, N * sizeof(float), cudaMemcpyHostToDevice));
     CUDA_CALL(cudaMemcpy(dParticles[i].weight, hParticles.weight, N * sizeof(float), cudaMemcpyHostToDevice));
   }
-  CUDA_CALL(cudaMemcpy(dCenterOfMass, hCenterOfMass, sizeof(float4), cudaMemcpyHostToDevice));
 
   /********************************************************************************************************************/
   /*                                           Clear GPU center of mass                                               */
   /********************************************************************************************************************/
   CUDA_CALL(cudaMemset(dCenterOfMass, 0, sizeof(float4)));
+  CUDA_CALL(cudaMemset(dLock, 0, sizeof(int)));
 
   /********************************************************************************************************************/
   /*                           TODO: Declare and create necessary CUDA streams and events                             */
@@ -253,7 +253,7 @@ int main(int argc, char **argv)
       CUDA_CALL(cudaMemcpyAsync(hParticles.velY, dParticles[srcIdx].velY, N * sizeof(float), cudaMemcpyDeviceToHost, transferStream));
       CUDA_CALL(cudaMemcpyAsync(hParticles.velZ, dParticles[srcIdx].velZ, N * sizeof(float), cudaMemcpyDeviceToHost, transferStream));
       CUDA_CALL(cudaMemcpyAsync(hParticles.weight, dParticles[srcIdx].weight, N * sizeof(float), cudaMemcpyDeviceToHost, transferStream));
-      
+
       // write particle data
       CUDA_CALL(cudaStreamSynchronize(transferStream));
       h5Helper.writeParticleData(recordNum);
@@ -275,7 +275,7 @@ int main(int argc, char **argv)
     }
   }
   */
-  
+
   for (unsigned s = 0u; s < steps; ++s)
   {
     const unsigned srcIdx = s % 2;       // source particles index
@@ -287,7 +287,7 @@ int main(int argc, char **argv)
 
     if (shouldWrite(s))
     {
-       auto recordNum = getRecordNum(s);
+      auto recordNum = getRecordNum(s);
 
       // Transfer particle data back to the CPU asynchronously
       CUDA_CALL(cudaMemcpy(hParticles.posX, dParticles[srcIdx].posX, N * sizeof(float), cudaMemcpyDeviceToHost));
@@ -297,13 +297,16 @@ int main(int argc, char **argv)
       CUDA_CALL(cudaMemcpy(hParticles.velY, dParticles[srcIdx].velY, N * sizeof(float), cudaMemcpyDeviceToHost));
       CUDA_CALL(cudaMemcpy(hParticles.velZ, dParticles[srcIdx].velZ, N * sizeof(float), cudaMemcpyDeviceToHost));
       CUDA_CALL(cudaMemcpy(hParticles.weight, dParticles[srcIdx].weight, N * sizeof(float), cudaMemcpyDeviceToHost));
-      
+
+      CUDA_CALL(cudaDeviceSynchronize());
+
       // write particle data
       h5Helper.writeParticleData(recordNum);
+      CUDA_CALL(cudaDeviceSynchronize());
 
       // zero out center of mass and compute it in comStream
       CUDA_CALL(cudaMemset(dCenterOfMass, 0, sizeof(float4)));
-
+      
       centerOfMass<<<redGridDim, redBlockDim, redSharedMemSize>>>(dParticles[srcIdx], dCenterOfMass, dLock, N);
       CUDA_CALL(cudaDeviceSynchronize());
 
@@ -314,13 +317,14 @@ int main(int argc, char **argv)
       h5Helper.writeCom(*hCenterOfMass, recordNum);
     }
   }
-  
+
   const unsigned resIdx = steps % 2; // result particles index
 
   /********************************************************************************************************************/
   /*                          TODO: Invocation of center of mass kernel, do not forget to add                         */
   /*                              additional synchronization and set appropriate stream                               */
   /********************************************************************************************************************/
+  CUDA_CALL(cudaMemset(dCenterOfMass, 0, sizeof(float4)));
   centerOfMass<<<redGridDim, redBlockDim, redSharedMemSize>>>(dParticles[resIdx], dCenterOfMass, dLock, N);
 
   // Wait for all CUDA kernels to finish
