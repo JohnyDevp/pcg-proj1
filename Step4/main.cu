@@ -306,7 +306,7 @@ int main(int argc, char **argv)
       CUDA_CALL(cudaEventRecord(transferEvent, transferStream));
 
       // after the memory copy, perform host-side data writing
-      CUDA_CALL(cudaStreamWaitEvent(transferStream, transferEvent));
+      CUDA_CALL(cudaEventSynchronize(transferEvent));
       h5Helper.writeParticleData(recordNum);
 
       // zero out center of mass and compute centerOfMass
@@ -321,6 +321,9 @@ int main(int argc, char **argv)
 
       // transfer center of mass to CPU and then write it
       CUDA_CALL(cudaMemcpyAsync(hCenterOfMass, dCenterOfMass, sizeof(float4), cudaMemcpyDeviceToHost, transferStream));
+      
+      CUDA_CALL(cudaEventRecord(transferEvent, transferStream));
+      CUDA_CALL(cudaEventSynchronize(transferEvent));
       h5Helper.writeCom(*hCenterOfMass, recordNum);
     }
   }
@@ -374,9 +377,9 @@ int main(int argc, char **argv)
   /*                          TODO: Invocation of center of mass kernel, do not forget to add                         */
   /*                              additional synchronization and set appropriate stream                               */
   /********************************************************************************************************************/
-  // CUDA_CALL(cudaStreamWaitEvent(computeMassStream, computeVelocityEvent));
-  CUDA_CALL(cudaMemsetAsync(dCenterOfMass, 0, sizeof(float4), transferStream));
-  centerOfMass<<<redGridDim, redBlockDim, redSharedMemSize, transferStream>>>(dParticles[resIdx], dCenterOfMass, dLock, N);
+  CUDA_CALL(cudaStreamWaitEvent(computeMassStream, computeVelocityEvent));
+  CUDA_CALL(cudaMemsetAsync(dCenterOfMass, 0, sizeof(float4), computeMassStream));
+  centerOfMass<<<redGridDim, redBlockDim, redSharedMemSize, computeMassStream>>>(dParticles[resIdx], dCenterOfMass, dLock, N);
 
   // Wait for all CUDA kernels to finish
   CUDA_CALL(cudaDeviceSynchronize());
