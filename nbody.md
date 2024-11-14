@@ -1,6 +1,6 @@
 # PCG projekt 1
 
--   autor: xlogin00
+-   autor: xholan11
 
 ## Měření výkonu (čas / 100 kroků simulace)
 
@@ -33,40 +33,45 @@ N Time
 
 ### Závěrečné
 
-|   N    | CPU [s]  |  GPU [s]  | Zrychlení | Propustnost [GiB/s] | Výkon [GFLOPS] |
-| :----: | :------: | :-------: | :-------: | :-----------------: | :------------: |
-|  1024  |  1.0928  | 0.029182s |  37.448   |                     |                |
-|  2048  |  0.5958  | 0.054568s |  10.918   |                     |                |
-|  4096  |  0.6652  | 0.108550s |   6.128   |                     |                |
-|  8192  |  1.6599  | 0.208529s |   7.960   |                     |                |
-| 16384  |  3.3655  | 0.407879s |   8.251   |                     |                |
-| 32768  | 12.7233  | 0.813445s |  15.641   |                     |                |
-| 65536  | 48.9732  | 2.720007s |  18.005   |                     |                |
-| 131072 | 195.9965 | 8.046670s |  24.357   |                     |                |
+|   N    | CPU [s]  |  GPU [s]  | Zrychlení | Propustnost [GiB/s] |   Výkon [GFLOPS]   |
+| :----: | :------: | :-------: | :-------: | :-----------------: | :----------------: |
+|  1024  |  1.0928  | 0.029182s |  37.448   |   0.129345703125    |      109.285       |
+|  2048  |  0.5958  | 0.054568s |  10.918   |    0.11357421875    | 221.77457284275442 |
+|  4096  |  0.6652  | 0.108550s |   6.128   |     0.105859375     | 446.8835633825511  |
+|  8192  |  1.6599  | 0.208529s |   7.960   |   0.104716796875    | 897.0887730363756  |
+| 16384  |  3.3655  | 0.407879s |   8.251   |    0.09912109375    | 1784.9229580266401 |
+| 32768  | 12.7233  | 0.813445s |  15.641   |   0.098037109375    | 3570.8719969978556 |
+| 65536  | 48.9732  | 2.720007s |  18.005   |   0.057099609375    | 4181.721532690339  |
+| 131072 | 195.9965 | 8.046670s |  24.357   |   0.038525390625    | 4708.5613117180765 |
 
 ## Otázky
 
 ### Krok 0: Základní implementace
 
 **Vyskytla se nějaká anomálie v naměřených časech? Pokud ano, vysvětlete:**
-Za anomálii můžeme považovat téměř dvouvteřinový rozdíl ve výpočtech s počty částic 69632 a 73728. Ačkoli je nejvíc k více než jednovteřinovým nárůstům dochází v časech vícekrát, tento rozdíl je nejdramatičtější. Všechny rozdíly budou pravděpodobně způsobeny výpadky paměti, kdy pro zmíněné počty částic dojde bude velikost bloků taková, že částice načtené do CACHE v ní nevydrží do další iterace.
+Ano. Můžeme pozorovat silně nelineární nárust doby výpočtu pro počty částic N=53248 a N=57344. Ten bude v tomto případě způsobem větším počtem bloků, než je počet dostupných SM procesorů. Tím dojde k zatížení některých SM procesorů vícekrát (zatímco ostatní budou stát) a tím se prodlouží doba výpočtu.
 
 ### Krok 1: Sloučení kernelů
 
 **Došlo ke zrychlení?**
 Ano
+
 **Popište hlavní důvody:**
 Došlo ke snížení celkového počtu iterací, kdy v kroku 1 byl proveden dvojnásobný počet těchto iterací.
-Zároveň byl optimalizován přístup do paměti při aktualizaci polohy jednotlivých částic a upravení výpočtu, pro minimalizaci nutných výpočetních operací.
+Zároveň byl optimalizován přístup do paměti při aktualizaci polohy jednotlivých částic a upravení výpočtu pro minimalizaci nutných výpočetních operací.
 
 ### Krok 2: Sdílená paměť
 
 **Došlo ke zrychlení?**
+Ano
 
 **Popište hlavní důvody:**
+Načtení dat vlákny do sdílené paměti pro každý blok snižuje počet přístupů do globální paměti (v předchozích krocích byla data stále načítána z globální paměti).
 
 ### Krok 5: Měření výkonu
 
 **Jakých jste dosáhli výsledků?**
+Došlo k velkému zrychlení, což bylo očekávané při správném využití GPU. Největší zrychlení (37x) se projevilo v měřeních při počtu částic N=1024. Největší propustnosti paměti pak při N= a největší výkon byl dosažen s N= .
 
 **Lze v datech pozorovat nějaké anomálie?**
+Ano. Jednotlivá zrychlení GPU proti CPU s rostoucím počtem částic N nejdříve klesají a následně začnou stoupat. Toto chování je velmi pravděpodobně způsobené opět různých počtem bloků, kdy při drobném přesáhnutí maximálního počtu SM procesorů dojde k delší době výpočtu,
