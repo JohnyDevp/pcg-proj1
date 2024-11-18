@@ -276,47 +276,7 @@ int main(int argc, char **argv)
     }
   }
 
-/*  
-    for (unsigned s = 0u; s < steps; ++s)
-    {
-      const unsigned srcIdx = s % 2;       // source particles index
-      const unsigned dstIdx = (s + 1) % 2; // destination particles index
-
-      // kernel for position update in compute stream
-      calculateVelocity<<<simGridDim, simBlockDim, sharedMemSize>>>(dParticles[srcIdx], dParticles[dstIdx], N, dt);
-
-      if (shouldWrite(s))
-      {
-        auto recordNum = getRecordNum(s);
-
-        // Transfer particle data back to the CPU asynchronously
-        CUDA_CALL(cudaMemcpy(hParticles.posX, dParticles[srcIdx].posX, N * sizeof(float), cudaMemcpyDeviceToHost));
-        CUDA_CALL(cudaMemcpy(hParticles.posY, dParticles[srcIdx].posY, N * sizeof(float), cudaMemcpyDeviceToHost));
-        CUDA_CALL(cudaMemcpy(hParticles.posZ, dParticles[srcIdx].posZ, N * sizeof(float), cudaMemcpyDeviceToHost));
-        CUDA_CALL(cudaMemcpy(hParticles.velX, dParticles[srcIdx].velX, N * sizeof(float), cudaMemcpyDeviceToHost));
-        CUDA_CALL(cudaMemcpy(hParticles.velY, dParticles[srcIdx].velY, N * sizeof(float), cudaMemcpyDeviceToHost));
-        CUDA_CALL(cudaMemcpy(hParticles.velZ, dParticles[srcIdx].velZ, N * sizeof(float), cudaMemcpyDeviceToHost));
-        CUDA_CALL(cudaMemcpy(hParticles.weight, dParticles[srcIdx].weight, N * sizeof(float), cudaMemcpyDeviceToHost));
-
-        // write particle data
-        h5Helper.writeParticleData(recordNum);
-        // CUDA_CALL(cudaDeviceSynchronize());
-
-        // zero out center of mass and compute it in comStream
-        CUDA_CALL(cudaMemset(dCenterOfMass, 0, sizeof(float4)));
-
-        centerOfMass<<<redGridDim, redBlockDim, redSharedMemSize>>>(dParticles[srcIdx], dCenterOfMass, dLock, N);
-
-        // transfer center of mass to CPU
-        CUDA_CALL(cudaMemcpy(hCenterOfMass, dCenterOfMass, sizeof(float4), cudaMemcpyDeviceToHost));
-
-        // write center of mass data
-        h5Helper.writeCom(*hCenterOfMass, recordNum);
-      }
-    }
-  
-*/
-  const unsigned resIdx = steps % 2; // result particles index
+const unsigned resIdx = steps % 2; // result particles index
 
   /********************************************************************************************************************/
   /*                          TODO: Invocation of center of mass kernel, do not forget to add                         */
@@ -325,9 +285,6 @@ int main(int argc, char **argv)
   CUDA_CALL(cudaStreamWaitEvent(computeMassStream, computeVelocityEvent));
   CUDA_CALL(cudaMemsetAsync(dCenterOfMass, 0, sizeof(float4), computeMassStream));
   centerOfMass<<<redGridDim, redBlockDim, redSharedMemSize, computeMassStream>>>(dParticles[resIdx], dCenterOfMass, dLock, N);
-
-  // CUDA_CALL(cudaMemset(dCenterOfMass, 0, sizeof(float4)));
-  // centerOfMass<<<redGridDim, redBlockDim, redSharedMemSize>>>(dParticles[resIdx], dCenterOfMass, dLock, N);
 
   // ================================================================================================================== //
 

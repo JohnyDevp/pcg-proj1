@@ -1,16 +1,16 @@
 /**
  * @file      nbody.cu
  *
- * @author    Name Surname \n
+ * @author    Jan Holan \n
  *            Faculty of Information Technology \n
  *            Brno University of Technology \n
- *            xlogin00@fit.vutbr.cz
+ *            xholan11@fit.vutbr.cz
  *
  * @brief     PCG Assignment 1
  *
  * @version   2024
  *
- * @date      04 October   2023, 09:00 (created) \n
+ * @date      17 November   2024, 09:00 (created) \n
  */
 
 #include <device_launch_parameters.h>

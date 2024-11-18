@@ -33,16 +33,16 @@ N Time
 
 ### Závěrečné
 
-|   N    | CPU [s]  |  GPU [s]  | Zrychlení | Propustnost [GiB/s] |   Výkon [GFLOPS]   |
-| :----: | :------: | :-------: | :-------: | :-----------------: | :----------------: |
-|  1024  |  1.0928  | 0.029182s |  37.448   |   0.129345703125    |      109.285       |
-|  2048  |  0.5958  | 0.054568s |  10.918   |    0.11357421875    | 221.77457284275442 |
-|  4096  |  0.6652  | 0.108550s |   6.128   |     0.105859375     | 446.8835633825511  |
-|  8192  |  1.6599  | 0.208529s |   7.960   |   0.104716796875    | 897.0887730363756  |
-| 16384  |  3.3655  | 0.407879s |   8.251   |    0.09912109375    | 1784.9229580266401 |
-| 32768  | 12.7233  | 0.813445s |  15.641   |   0.098037109375    | 3570.8719969978556 |
-| 65536  | 48.9732  | 2.720007s |  18.005   |   0.057099609375    | 4181.721532690339  |
-| 131072 | 195.9965 | 8.046670s |  24.357   |   0.038525390625    | 4708.5613117180765 |
+|   N    | CPU [s]  |  GPU [s]  | Zrychlení | Propustnost [GiB/s] | Výkon [GFLOPS] |
+| :----: | :------: | :-------: | :-------: | :-----------------: | :------------: |
+|  1024  |  1.0928  | 0.029182s |  37.448   |         0.129       |     109.285    |
+|  2048  |  0.5958  | 0.054568s |  10.918   |         0.114       |     221.775    |
+|  4096  |  0.6652  | 0.108550s |   6.128   |         0.106       |     446.884    |
+|  8192  |  1.6599  | 0.208529s |   7.960   |         0.105       |     897.089    |
+| 16384  |  3.3655  | 0.407879s |   8.251   |         0.099       |     1784.923   |
+| 32768  | 12.7233  | 0.813445s |  15.641   |         0.098       |     3570.872   |
+| 65536  | 48.9732  | 2.720007s |  18.005   |         0.057       |     4181.722   |
+| 131072 | 195.9965 | 8.046670s |  24.357   |         0.039       |     4708.561   |
 
 ## Otázky
 
@@ -66,12 +66,13 @@ Zároveň byl optimalizován přístup do paměti při aktualizaci polohy jednot
 Ano
 
 **Popište hlavní důvody:**
-Načtení dat vlákny do sdílené paměti pro každý blok snižuje počet přístupů do globální paměti (v předchozích krocích byla data stále načítána z globální paměti).
+Načtení dat vlákny do sdílené paměti pro každý blok snižuje počet přístupů do globální paměti od jednotlivých vláken (v předchozích krocích byla data stále načítána z globální paměti). Navíc v případě správného přístupu do bank může dosahovat sdílená paměť rychlosti registrů.
 
 ### Krok 5: Měření výkonu
 
 **Jakých jste dosáhli výsledků?**
-Došlo k velkému zrychlení, což bylo očekávané při správném využití GPU. Největší zrychlení (37x) se projevilo v měřeních při počtu částic N=1024. Největší propustnosti paměti pak při N= a největší výkon byl dosažen s N= .
+Došlo k velkému zrychlení, což bylo očekávané při správném využití GPU. Největší zrychlení (37x) se projevilo v měřeních při počtu částic N=1024. Největší propustnosti paměti pak při stejném počtu částic a největší výkon byl dosažen s N=131072.
 
 **Lze v datech pozorovat nějaké anomálie?**
-Ano. Jednotlivá zrychlení GPU proti CPU s rostoucím počtem částic N nejdříve klesají a následně začnou stoupat. Toto chování je velmi pravděpodobně způsobené opět různých počtem bloků, kdy při drobném přesáhnutí maximálního počtu SM procesorů dojde k delší době výpočtu,
+Ano. Jednotlivá zrychlení GPU proti CPU s rostoucím počtem částic N nejdříve klesají a následně začnou stoupat. Klesání může být ovlivněno špatným přístupem do paměti, který se neprojeví při malém počtu dat a naopak jehož vliv se začne umenšovat s větším počtem částic díky rostoucímu vytížení GPU. Zároveň lze pozorovat, že při zvětšujícím se počtu částic začínají být procesory, jak bylo zmíněno, vytížené, zatímco propustnost paměti se stává úzkým hrdlem.
+
